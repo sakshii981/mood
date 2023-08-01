@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Mood Throughout the Day - Line Chart</title>
+  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <style>
+   
+    body {
+      font-family: Arial, sans-serif;
+    }
+    
+    .chart-container {
+      background-color: #f5f5f5;
+      border-radius: 5px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+    }
+    .line {
+      fill: none;
+      stroke: url(#line-gradient);
+      stroke-width: 4;
+    }
+    .dot {
+      fill: rgb(242, 178, 214);
+      stroke: #fff;
+      stroke-width: 2;
+    }
+    .dot-label {
+      font-size: 14px;
+      fill: steelblue;
+      text-anchor: middle;
+    }
+    .grid-line {
+      stroke: #e0e0e0;
+      stroke-dasharray: 3;
+    }
+    .axis-label {
+      font-size: 1x;
+      fill: #333;
+    }
+    .axis line,
+    .axis path {
+      stroke: #333;
+    }
+    .tick line {
+      stroke: #e0e0e0;
+    }
+    .tooltip {
+      font-size: 14px;
+      font-weight: bold;
+      background-color: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      padding: 5px 10px;
+      border-radius: 5px;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+    <div class="chart-container">
+        <div id="chart"></div>
+  <script>
+   
+    const moodData = [
+      { time: "08:00", mood: 4 },
+      { time: "10:00", mood: 6 },
+      { time: "12:00", mood: 7 },
+      { time: "14:00", mood: 5 },
+      { time: "16:00", mood: 8 },
+      { time: "18:00", mood: 6 },
+      { time: "20:00", mood: 4 },
+      
+    ];
+
+   
+    const svgWidth = 800;
+    const svgHeight = 400;
+    const margin = { top: 20, right: 20, bottom: 30, left: 50 };
+    const width = svgWidth - margin.left - margin.right;
+    const height = svgHeight - margin.top - margin.bottom;
+
+    
+    const parseTime = d3.timeParse("%H:%M");
+
+    const formatTime = d3.timeFormat("%H:%M");
+
+    moodData.forEach(d => {
+      d.time = parseTime(d.time);
+    });
+
+    const xScale = d3.scaleTime()
+      .domain(d3.extent(moodData, d => d.time))
+      .range([0, width]);
+
+    const yScale = d3.scaleLinear()
+      .domain([0, 10])
+      .range([height, 0]);
+
+    const line = d3.line()
+      .x(d => xScale(d.time))
+      .y(d => yScale(d.mood));
+
+    const svg = d3.select("#chart").append("svg")
+      .attr("width", svgWidth)
+      .attr("height", svgHeight)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);const gradient = svg.append("linearGradient")
+      .attr("id", "line-gradient")
+      .attr("gradientUnits", "userSpaceOnUse")
+      .attr("x1", 0).attr("y1", yScale(0))
+      .attr("x2", 0).attr("y2", yScale(10));
+
+    gradient.append("stop")
+      .attr("offset", "0%")
+      .attr("stop-color", "#5ba0ff");
+    
+    gradient.append("stop")
+      .attr("offset", "100%")
+      .attr("stop-color", "#fff")
+
+
+
+
+    svg.append("path")
+      .datum(moodData)
+      .attr("class", "line")
+      .attr("d", line)
+      .call(animateLine);
+
+    function animateLine(selection) {
+      selection.transition()
+        .duration(1000) 
+        .attrTween("d", function(d) {
+          const previous = this.getAttribute("d");
+          const current = line(d);
+          return d3.interpolatePath(previous, current);
+        });
+    }
+
+    svg.selectAll(".dot")
+      .data(moodData)
+      .enter()
+      .append("circle")
+      .attr("class", "dot")
+      .attr("cx", d => xScale(d.time))
+      .attr("cy", d => yScale(d.mood))
+      .attr("r", 5)
+      .on("mouseover", (event, d) => {
+        const tooltip = svg.append("text")
+          .attr("class", "tooltip")
+          .attr("x", xScale(d.time))
+          .attr("y", yScale(d.mood) - 15)
+          .text(`Mood: ${d.mood}`);
+      })
+      .on("mouseout", () => {
+        svg.selectAll(".tooltip").remove();
+      })
+      .call(animateDataPoints);
+
+    function animateDataPoints(selection) {
+      selection
+        .attr("cy", yScale(0)) 
+        .transition()
+        .duration(1000) 
+        .delay((d, i) => i * 200) 
+        .attr("cy", d => yScale(d.mood)); 
+    }
+
+    
+    svg.selectAll(".dot")
+      .data(moodData)
+      .enter()
+      .append("circle")
+      .attr("class", "dot")
+      .attr("cx", d => xScale(d.time))
+      .attr("cy", d => yScale(d.mood))
+      .attr("r", 5);
+
+   
+    svg.selectAll(".dot-label")
+      .data(moodData)
+      .enter()
+      .append("text")
+      .attr("class", "dot-label")
+      .attr("x", d => xScale(d.time))
+      .attr("y", d => yScale(d.mood) - 10)
+      .text(d => d.mood);
+
+  
+    svg.append("g")
+      .attr("transform", `translate(0, ${height})`)
+      .call(d3.axisBottom(xScale).tickFormat(formatTime));
+
+    svg.append("g")
+      .call(d3.axisLeft(yScale));
+
+
+
+      svg.append("g")
+      .attr("class", "grid")
+      .call(d3.axisLeft(yScale).tickSize(-width).tickFormat(""))
+      .selectAll(".tick line")
+      .attr("class", "grid-line");
+
+   
+    svg.append("text")
+      .attr("class", "axis-label")
+      .attr("x", width / 2)
+      .attr("y", height + 28)
+      .text("Time of Day");
+
+    svg.append("text")
+      .attr("class", "axis-label")
+      .attr("x", -height / 2)
+      .attr("y", -margin.left + 10)
+      .attr("transform", "rotate(-90)")
+      .attr("text-anchor", "middle")
+      .text("Mood Rating");
+
+  </script>
+</body>
+</html>
